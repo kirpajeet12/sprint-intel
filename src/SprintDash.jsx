@@ -324,7 +324,7 @@ export default function SprintDash() {
       const sprintData = await ado.getCurrentSprint(
         config.org,
         config.project,
-        config.team || "defaultTeam",
+        config.team || `${config.project} Team`,
         config.pat
       );
       if (!sprintData) throw new Error("No active sprint found");
@@ -333,7 +333,7 @@ export default function SprintDash() {
       const ids = await ado.getSprintWorkItems(
         config.org,
         config.project,
-        config.team || "defaultTeam",
+        config.team || `${config.project} Team`,
         sprintData.id,
         config.pat
       );

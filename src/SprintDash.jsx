@@ -213,15 +213,23 @@ const ado = {
       "Content-Type": "application/json",
     };
   },
+  async getDefaultTeam(org, project, pat) {
+    const url = `https://dev.azure.com/${org}/_apis/projects/${encodeURIComponent(project)}/teams?$top=1&api-version=7.0`;
+    const r = await fetch(url, { headers: this.headers(pat) });
+    if (!r.ok) throw new Error(`Could not fetch teams: ${r.status}`);
+    const d = await r.json();
+    if (!d.value?.length) throw new Error("No teams found for this project");
+    return d.value[0].name;
+  },
   async getCurrentSprint(org, project, team, pat) {
-    const url = `https://dev.azure.com/${org}/${project}/${team}/_apis/work/teamsettings/iterations?$timeframe=current&api-version=7.0`;
+    const url = `https://dev.azure.com/${org}/${encodeURIComponent(project)}/${encodeURIComponent(team)}/_apis/work/teamsettings/iterations?$timeframe=current&api-version=7.0`;
     const r = await fetch(url, { headers: this.headers(pat) });
     if (!r.ok) throw new Error(`ADO error ${r.status}: ${r.statusText}`);
     const d = await r.json();
     return d.value?.[0] || null;
   },
   async getSprintWorkItems(org, project, team, iterationId, pat) {
-    const url = `https://dev.azure.com/${org}/${project}/${team}/_apis/work/teamsettings/iterations/${iterationId}/workitems?api-version=7.0`;
+    const url = `https://dev.azure.com/${org}/${encodeURIComponent(project)}/${encodeURIComponent(team)}/_apis/work/teamsettings/iterations/${iterationId}/workitems?api-version=7.0`;
     const r = await fetch(url, { headers: this.headers(pat) });
     if (!r.ok) throw new Error(`ADO error ${r.status}`);
     const d = await r.json();
@@ -321,19 +329,15 @@ export default function SprintDash() {
     setLoading(true);
     try {
       setLoadMsg("Fetching current sprint…");
-      const sprintData = await ado.getCurrentSprint(
-        config.org,
-        config.project,
-        config.team || `${config.project} Team`,
-        config.pat
-      );
+      const team = config.team || await ado.getDefaultTeam(config.org, config.project, config.pat);
+      const sprintData = await ado.getCurrentSprint(config.org, config.project, team, config.pat);
       if (!sprintData) throw new Error("No active sprint found");
       setSprint(sprintData);
       setLoadMsg("Fetching work item IDs…");
       const ids = await ado.getSprintWorkItems(
         config.org,
         config.project,
-        config.team || `${config.project} Team`,
+        team,
         sprintData.id,
         config.pat
       );
